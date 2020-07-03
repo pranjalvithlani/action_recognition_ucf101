@@ -13,6 +13,7 @@ import os
 import shutil
 import time
 from params import argparams
+from dataUtils import UCF101Dataset
 
 import torch
 import torch.nn as nn
@@ -23,6 +24,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+
 
 
 best_prec1 = 0
@@ -60,26 +62,27 @@ def main(args):
     # Data loading code
     traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
+    csv_file = './data/export_dataframe.csv'
+    
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    train_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(traindir, transforms.Compose([
-            transforms.RandomSizedCrop(224),
-            transforms.RandomHorizontalFlip(),
+    transform_img = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.RandomverticalFlip(),
             transforms.ToTensor(),
             normalize,
-        ])),
+        ])
+    
+    
+    train_data = UCF101Dataset(csv_file, args.data, transform_img)
+    train_loader = torch.utils.data.DataLoader(train_data,
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
-    val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Scale(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
+    val_data = UCF101Dataset(csv_file, args.data, transform_img)
+    val_loader = torch.utils.data.DataLoader(val_data,
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
