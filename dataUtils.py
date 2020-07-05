@@ -9,12 +9,11 @@ import torch
 import torch.nn.parallel
 import torch.optim
 import torch.utils.data
-import torchvision.transforms as transforms
 
 import os
 import torch
 import pandas as pd
-from skimage import io
+from PIL import Image
 from torch.utils.data import Dataset
 
 
@@ -48,23 +47,36 @@ class UCF101Dataset(Dataset):
         
         label = self.clip_frame.iloc[idx, 2] 
         
-        image = io.imread(img_name)
+        img_name_use = img_name[:-6] + "00" + img_name[-4:]
+        image = Image.open(img_name_use)
         if self.transform:
             image = self.transform(image)
-            
-        t_images = image.clone()
-        for i in range(len(self.nframes)):
+        
+        imageR = image[0].clone().unsqueeze(0)
+        imageG = image[1].clone().unsqueeze(0)
+        imageB = image[2].clone().unsqueeze(0)
+        
+        for i in range(1,self.nframes):
             #replacing the frame no. with "i"
             if i < 10:
-                img_name[-6:-4] = "0"+str(i)  
+                img_name_use = img_name[:-6] + "0"+str(i) + img_name[-4:]
             else:
-                img_name[-6:-4] = str(i)
-            image = io.imread(img_name)
+                img_name_use = img_name[:-6] + str(i) + img_name[-4:]
+            
+            image = Image.open(img_name_use)
     
             if self.transform:
                 image = self.transform(image)
             
-            t_images = torch.cat(t_images, image)
+            imageR = torch.cat((imageR, image[0].unsqueeze(0)))
+            imageG = torch.cat((imageG, image[1].unsqueeze(0)))
+            imageB = torch.cat((imageB, image[2].unsqueeze(0)))
+            
+        t_combine = []
+        t_combine.append(imageR.unsqueeze(0))
+        t_combine.append(imageG.unsqueeze(0))
+        t_combine.append(imageB.unsqueeze(0))
+        t_images = torch.cat(t_combine,0)
         
         sample = {'images':t_images, 'label':label}
 
