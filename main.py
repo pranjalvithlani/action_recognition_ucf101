@@ -14,6 +14,9 @@ import shutil
 import time
 from params import argparams
 from dataUtils import UCF101Dataset
+import models
+import matplotlib.pyplot as plt
+plt.ion()   # interactive mode
 
 import torch
 import torch.nn as nn
@@ -22,28 +25,41 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-import torchvision.models as models
+#import torchvision.datasets as datasets
+#import torchvision.models as models
 
 
 
 best_prec1 = 0
 
-def main(args):
+def main(argparams):
     global args, best_prec1
-
+    
+    num_classes = 101
+    args = argparams
+    # args.arch = 'r2plus1d_18'
+    # model_names = sorted(name for name in models.__dict__ if name.islower() and not name.startswith("__") and callable(models.__dict__[name]))
+    # #print(model_names)
+    
+    # args.arch = 'resnet18'
+    # # create model
+    # if args.pretrained:
+    #     print("=> using pre-trained model '{}'".format(args.arch))
+    #     model = models.__dict__[args.arch](pretrained=True)
+    # else:
+    #     print("=> creating model '{}'".format(args.arch))
+    #     model = models.__dict__[args.arch]()
+    
     args.arch = 'r2plus1d_18'
     
-    # create model
-    if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
-        model = models.__dict__[args.arch](pretrained=True)
-    else:
-        print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch]()
-
+    model = models.r2plus1d_18(args.pretrained)
+    
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_classes)
+    
     model = torch.nn.DataParallel(model).cuda()
-
+    
+    
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -60,28 +76,34 @@ def main(args):
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    valdir = os.path.join(args.data, 'val')
-    csv_file = './data/export_dataframe.csv'
+    traindir = './data/trainlist01_frames8.csv'
+    valdir = './data/testlist01_frames8.csv'
     
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    transform_img = transforms.Compose([
+    transform_img_train = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
-            transforms.RandomverticalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ])
+    
+    transform_img_val = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
             transforms.ToTensor(),
             normalize,
         ])
     
     
-    train_data = UCF101Dataset(csv_file, args.data, transform_img)
+    train_data = UCF101Dataset(traindir, args.data, transform=transform_img_train)
     train_loader = torch.utils.data.DataLoader(train_data,
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
-    val_data = UCF101Dataset(csv_file, args.data, transform_img)
+    val_data = UCF101Dataset(valdir, args.data, transform=transform_img_val)
     val_loader = torch.utils.data.DataLoader(val_data,
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
@@ -95,6 +117,7 @@ def main(args):
 
     if args.evaluate:
         validate(val_loader, model, criterion)
+        visualize_model(model, val_loader, 6)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -105,6 +128,7 @@ def main(args):
 
         # evaluate on validation set
         prec1 = validate(val_loader, model, criterion)
+        
 
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_prec1
@@ -128,23 +152,26 @@ def train(train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
-    for i, (input, target) in enumerate(train_loader):
+    for i, sample_batched in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        target = target.cuda(async=True)
+        input = sample_batched['images']
+        target = sample_batched['label']
+        
+        target = target.cuda(non_blocking=True)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
-
+        
         # compute output
         output = model(input_var)
         loss = criterion(output, target_var)
-
+        
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
-        losses.update(loss.data[0], input.size(0))
-        top1.update(prec1[0], input.size(0))
-        top5.update(prec5[0], input.size(0))
+        losses.update(loss.data.item(), input.size(0))
+        top1.update(prec1.item(), input.size(0))
+        top5.update(prec5.item(), input.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -176,33 +203,38 @@ def validate(val_loader, model, criterion):
     model.eval()
 
     end = time.time()
-    for i, (input, target) in enumerate(val_loader):
-        target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input, volatile=True)
-        target_var = torch.autograd.Variable(target, volatile=True)
-
-        # compute output
-        output = model(input_var)
-        loss = criterion(output, target_var)
-
-        # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
-        losses.update(loss.data[0], input.size(0))
-        top1.update(prec1[0], input.size(0))
-        top5.update(prec5[0], input.size(0))
-
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        if i % args.print_freq == 0:
-            print('Test: [{0}/{1}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+    with torch.no_grad():
+        for i, sample_batched in enumerate(val_loader):
+            
+            input = sample_batched['images']
+            target = sample_batched['label']
+            
+            target = target.cuda(non_blocking=True)
+            input_var = input
+            target_var = target
+    
+            # compute output
+            output = model(input_var)
+            loss = criterion(output, target_var)
+    
+            # measure accuracy and record loss
+            prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+            losses.update(loss.data.item(), input.size(0))
+            top1.update(prec1.item(), input.size(0))
+            top5.update(prec5.item(), input.size(0))
+    
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
+    
+            if i % args.print_freq == 0:
+                print('Test: [{0}/{1}]\t'
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                      'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                       i, len(val_loader), batch_time=batch_time, loss=losses,
+                       top1=top1, top5=top5))
 
     print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
@@ -256,5 +288,55 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
+def visualize_model(model, val_loader, num_images=6):
+    was_training = model.training
+    model.eval()
+    # images_so_far = 0
+    # fig = plt.figure()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    filename = open('./data/classInd.txt','r')
+    class_names = filename.readlines()
+    class_names = [i.split(" ")[1] for i in class_names]
+
+    with torch.no_grad():
+        for i, sample_batched in enumerate(val_loader):
+            images_so_far = 0
+            fig = plt.figure()
+            
+            inputs = sample_batched['images']
+            labels = sample_batched['label']
+            
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+
+            for j in range(inputs.size()[0]):
+                images_so_far += 1
+                ax = plt.subplot(num_images//2, 2, images_so_far)
+                ax.axis('off')
+                ax.set_title('predicted: {}'.format(class_names[preds[j]]))
+                imshow(inputs.cpu().data[j])
+
+                if images_so_far == num_images:
+                    model.train(mode=was_training)
+                    break #return
+        model.train(mode=was_training)
+        
+def imshow(inp, title=None):
+    """Imshow for Tensor."""
+    inp = inp.numpy().transpose((1, 2, 3, 0))
+    inp = inp[4]
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    inp = std * inp + mean
+    inp = np.clip(inp, 0, 1)
+    plt.imshow(inp)
+    if title is not None:
+        plt.title(title)
+    plt.pause(1)  # pause a bit so that plots are updated
+    
+        
 if __name__ == '__main__':
     main(argparams)
