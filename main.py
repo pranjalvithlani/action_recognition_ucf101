@@ -12,6 +12,7 @@ import argparse
 import os
 import shutil
 import time
+from datetime import datetime
 from params import argparams
 from dataUtils import UCF101Dataset
 import models
@@ -51,6 +52,14 @@ def main(argparams):
     #     model = models.__dict__[args.arch]()
     
     args.arch = 'r2plus1d_18'
+    
+    # save checkpoints and plots
+    now = datetime.now()
+    timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
+    save_exps = '{}_{}'.format('exp', timestamp)
+    save_exps = './runs/'+save_exps + '/'
+    if not os.path.exists(save_exps):
+        os.makedirs(save_exps)
     
     model = models.r2plus1d_18(args.pretrained)
     
@@ -117,18 +126,26 @@ def main(argparams):
 
     if args.evaluate:
         validate(val_loader, model, criterion)
-        visualize_model(model, val_loader, 6)
+        visualize_model(model, val_loader, num_images=6)
         return
 
+    train_acc_history = []
+    val_acc_history = []
+    train_loss_history = []
+    val_loss_history = []
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch)
-
-        # evaluate on validation set
-        prec1 = validate(val_loader, model, criterion)
+        train_prec1, train_prec5, train_loss = train(train_loader, model, criterion, 
+                                         optimizer, epoch)
+        train_acc_history.append(train_prec1)
+        train_loss_history.append(train_loss)
         
+        # evaluate on validation set
+        prec1, prec5, val_loss = validate(val_loader, model, criterion)
+        val_acc_history.append(prec1)
+        val_loss_history.append(val_loss)
 
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_prec1
@@ -138,8 +155,11 @@ def main(argparams):
             'arch': args.arch,
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
-        }, is_best)
-
+        }, is_best, save_exps)
+        plot_results(train_acc_history, val_acc_history, save_exps, 
+                     loss_plot = False)
+        plot_results(train_loss_history, val_loss_history, save_exps, 
+                     loss_plot = True)
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -191,7 +211,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
-
+            
+    return top1.avg, top5.avg, loss.data.item()
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -239,13 +260,13 @@ def validate(val_loader, model, criterion):
     print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
 
-    return top1.avg
+    return top1.avg, top5.avg, loss.data.item()
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
+def save_checkpoint(state, is_best, save_exps, filename='checkpoint.pth.tar'):
+    torch.save(state, save_exps+filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(save_exps+filename, save_exps+'model_best.pth.tar')
 
 
 class AverageMeter(object):
@@ -287,6 +308,26 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+
+def plot_results(train_history, val_history, save_exps, loss_plot):
+    if loss_plot:
+        plt.title("Loss vs. Number of Training Epochs")
+        plt.ylabel("Loss")
+    else:
+        plt.title("Accuracy vs. Number of Training Epochs")
+        plt.ylabel("Accuracy")
+    plt.xlabel("Training Epochs")
+    plt.plot(range(1,args.epochs+1),train_history,label="Train")
+    plt.plot(range(1,args.epochs+1),val_history,label="Validation")
+    plt.ylim((0,1.))
+    plt.xticks(np.arange(1, args.epochs+1, 1.0))
+    plt.legend()
+    #plt.show()
+    if loss_plot:
+        plt.savefig(save_exps+'loss_plot.jpg')
+    else:
+        plt.savefig(save_exps+'accuracy_plot.jpg')
+    return
 
 def visualize_model(model, val_loader, num_images=6):
     was_training = model.training
