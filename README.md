@@ -16,8 +16,8 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 [image1]: ./examples/UCF101.jpg
-[image2]: ./examples/(2+1)D vs 3D.JPG
-[image3]: ./examples/sliding_windows.jpg
+[image2]: ./examples/abc.jpg
+[image3]: ./examples/(2+1)D_vs_3D.jpg
 [image4]: ./examples/sliding_window.jpg
 [image5]: ./examples/bboxes_and_heat.png
 [image6]: ./examples/labels_map.png
