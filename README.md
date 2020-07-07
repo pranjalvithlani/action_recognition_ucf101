@@ -6,14 +6,6 @@ recognices actions from the videos
 
 ---
 
-**Action Detection Project**
-
-The goals / steps of this project are the following:
-
-* Dataset prepration and pre-processing
-* Selecting the model architecture suitable for videos
-* Evaluation
-
 [//]: # (Image References)
 [image1]: ./examples/UCF101.jpg
 [image2]: ./examples/sample.jpg
