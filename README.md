@@ -62,8 +62,9 @@ The Video understanding is one of the core computer vision problems and has been
 
 Here, I'm using (2+1)D ConvLayer in place of 3D. It has been providing the state-of-the-art accuracy in so many video understanding tasks. I'm using a popular ResNet, 18 layer architecture for training the model. To get the benefits of transfer learning, pre-trained ResNet weights on Kinetics-400 dataset is used. 
 
-(2+1)D
 ![alt text][image3]
+
+In this image above, a) is a Full 3D Convolution and  (b) A (2+1)D convolutional block splits the computation into a spatial 2D convolution followed by a temporal 1D convolution.
 
 ### Evaluation
 
