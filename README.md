@@ -16,7 +16,7 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 [image1]: ./examples/UCF101.jpg
-[image2]: ./examples/abc.jpg
+[image2]: ./examples/sample.jpg
 [image3]: ./examples/(2+1)D_vs_3D.jpg
 [image4]: ./examples/eyemakeup+lipstick.jpg
 [image5]: ./examples/bboxes_and_heat.png
@@ -46,9 +46,8 @@ The action categories can be divided into five types:
 
 #### 2. Frames Extraction
 
-For the modeling, Each video clip is represented by 8-uniformaly sampled frames from that clip. So, rather than using single image to represent a video, using sequence of frames introduces temporal information into the context. 
+For the modeling, Each video clip is represented by 8-uniformaly sampled frames from that clip. So, rather than using single image to represent a video, using sequence of frames introduces temporal information into the context. The example of 8-frames selected from a video clip is given below.
 
-frame example
 ![alt text][image2]
 
 
@@ -77,6 +76,8 @@ In this image above, a) is a Full 3D Convolution and  (b) A (2+1)D convolutional
 Testing our model on real movies available on internet. I've take a clip the Indian movie (Manmadhudu). The extracted frames are:-
 
 ![alt text][image4]
+
+##### Applying EyeMakeUp  VS  Applying Lipstick 
 
 Here the data is ambiguious as the actor is having lipstick in his hand and is applying it on his eyes, rather than on his lips. So, our model predicts it as an APPLYING LIPSTICK category. But intersting thing is, if we check the top-5 predictions:- 
 1) ApplyLipstick
