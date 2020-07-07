@@ -12,6 +12,7 @@ import argparse
 import os
 import shutil
 import time
+import math
 from datetime import datetime
 from params import argparams
 from dataUtils import UCF101Dataset
@@ -60,6 +61,12 @@ def main(argparams):
     save_exps = './runs/'+save_exps + '/'
     if not os.path.exists(save_exps):
         os.makedirs(save_exps)
+        
+    # plot_results([50.1], [22],[4], [5], 6, 6, save_exps)
+    
+    # plot_results([50.1, 60], [22,46], [4,3.2], [5,4.5], 6, 7, save_exps)
+    
+    # plot_results([50.1, 60, 78], [22,46,66], [4,3.2, 2.5], [5,4.5,3.1], 6, 8, save_exps)
     
     model = models.r2plus1d_18(args.pretrained)
     
@@ -156,10 +163,8 @@ def main(argparams):
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
         }, is_best, save_exps)
-        plot_results(train_acc_history, val_acc_history, save_exps, 
-                     loss_plot = False)
-        plot_results(train_loss_history, val_loss_history, save_exps, 
-                     loss_plot = True)
+        plot_results(train_acc_history, val_acc_history, train_loss_history, 
+                     val_loss_history, args.start_epoch, epoch, save_exps)
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -309,24 +314,40 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
-def plot_results(train_history, val_history, save_exps, loss_plot):
-    if loss_plot:
-        plt.title("Loss vs. Number of Training Epochs")
-        plt.ylabel("Loss")
-    else:
-        plt.title("Accuracy vs. Number of Training Epochs")
-        plt.ylabel("Accuracy")
+def plot_results(train_acc_history, val_acc_history, train_loss_history, 
+                 val_loss_history, start_epoch, epoch, save_exps):
+    # accuracy plot
+    fig = plt.figure()
+    plt.title("Accuracy vs. Number of Training Epochs")
+    plt.ylabel("Accuracy")
     plt.xlabel("Training Epochs")
-    plt.plot(range(1,args.epochs+1),train_history,label="Train")
-    plt.plot(range(1,args.epochs+1),val_history,label="Validation")
-    plt.ylim((0,1.))
-    plt.xticks(np.arange(1, args.epochs+1, 1.0))
+    plt.plot(range(start_epoch,epoch+1),train_acc_history,label="Train")
+    plt.plot(range(start_epoch,epoch+1),val_acc_history,label="Validation")
+    y_min = math.floor(min(min(train_acc_history),min(val_acc_history)))
+    plt.ylim((y_min-2,100))
+    plt.xticks(np.arange(0, args.epochs+1, 1.0))
     plt.legend()
-    #plt.show()
-    if loss_plot:
-        plt.savefig(save_exps+'loss_plot.jpg')
-    else:
-        plt.savefig(save_exps+'accuracy_plot.jpg')
+    plt.show()
+    plt.savefig(save_exps+'accuracy_plot.jpg')
+    plt.pause(1)
+    plt.close()
+    
+    # loss plot
+    fig = plt.figure()
+    plt.title("Loss vs. Number of Training Epochs")
+    plt.ylabel("Loss")
+    plt.xlabel("Training Epochs")
+    plt.plot(range(start_epoch,epoch+1),train_loss_history,label="Train")
+    plt.plot(range(start_epoch,epoch+1),val_loss_history,label="Validation")
+    y_max = math.ceil(max(max(train_loss_history),max(val_loss_history)))
+    plt.ylim((0,y_max+1))
+    plt.xticks(np.arange(0, args.epochs+1, 1.0))
+    plt.legend()
+    plt.show()
+    plt.savefig(save_exps+'loss_plot.jpg')
+    plt.pause(1)
+    plt.close()
+    
     return
 
 def visualize_model(model, val_loader, num_images=6):
