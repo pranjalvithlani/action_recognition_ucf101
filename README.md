@@ -63,7 +63,7 @@ In this image above, a) is a Full 3D Convolution and  (b) A (2+1)D convolutional
 
 #### 2. Hard Testing
 
-Testing our model on real movies available on internet. I've take a clip the Indian movie (Manmadhudu). The extracted frames are:-
+Testing our model on real movies available on internet. I've taken a clip from the Indian movie (Manmadhudu). The extracted frames are:-
 
 ![alt text][image4]
 
