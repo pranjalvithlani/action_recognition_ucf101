@@ -18,7 +18,7 @@ The goals / steps of this project are the following:
 [image1]: ./examples/UCF101.jpg
 [image2]: ./examples/abc.jpg
 [image3]: ./examples/(2+1)D_vs_3D.jpg
-[image4]: ./examples/sliding_window.jpg
+[image4]: ./examples/eyemakeup+lipstick.jpg
 [image5]: ./examples/bboxes_and_heat.png
 [image6]: ./examples/labels_map.png
 [image7]: ./examples/output_bboxes.png
@@ -72,4 +72,17 @@ In this image above, a) is a Full 3D Convolution and  (b) A (2+1)D convolutional
 
 ##### After train the model for several epochs using SGD with momentum, a State-Of-The-Art accuracy of ~98% is achieved. 
 
+#### 2. Hard Testing
 
+Testing our model on real movies available on internet. I've take a clip the Indian movie (Manmadhudu). The extracted frames are:-
+
+![alt text][image4]
+
+Here the data is ambiguious as the actor is having lipstick in his hand and is applying it on his eyes, rather than on his lips. So, our model predicts it as an APPLYING LIPSTICK category. But intersting thing is, if we check the top-5 predictions:- 
+1) ApplyLipstick
+2) Brushing Teeth
+3) ApplyEyeMakeup
+4) ShavingBeard
+5) Haircut
+
+The good thing about model is, it can predict APPLY EYE MAKEUP in its top-5 predictions, even after the video is confusing. This shows how well the model can generalize to the movie data and can recognise actions from the movies as well.
