@@ -4,7 +4,6 @@ recognices actions from the videos
 ## Recognizing Actions in Videos
 ### 
 
----
 
 [//]: # (Image References)
 [image1]: ./examples/UCF101.jpg
@@ -16,7 +15,6 @@ recognices actions from the videos
 [image7]: ./examples/output_bboxes.png
 [video1]: ./project_video.mp4
 
----
 
 ### Dataset prepration and pre-processing
 
