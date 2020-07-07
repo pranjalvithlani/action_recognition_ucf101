@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Sat Jul  4 16:40:34 2020
-
-@author: Pranjal Vithlani
-"""
 
 import torch
 import torch.nn as nn
